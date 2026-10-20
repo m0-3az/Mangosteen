@@ -11,6 +11,8 @@ import androidx.activity.viewModels
 import ai.opencode.mangosteen.ui.ChatScreen
 import ai.opencode.mangosteen.ui.ChatViewModel
 import ai.opencode.mangosteen.ui.theme.MangosteenTheme
+import ai.opencode.mangosteen.ui.theme.ThemeCatalog
+import ai.opencode.mangosteen.ui.theme.ThemeStore
 
 class ChatActivity : ComponentActivity() {
 
@@ -22,9 +24,13 @@ class ChatActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        ThemeStore.load(this)
+        val dark = ThemeCatalog.byId(ThemeStore.themeId).isDark
         enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+            statusBarStyle = if (dark) SystemBarStyle.dark(Color.TRANSPARENT)
+            else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+            navigationBarStyle = if (dark) SystemBarStyle.dark(Color.TRANSPARENT)
+            else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
         )
 
         val id = intent.getLongExtra(EXTRA_ID, -1L)

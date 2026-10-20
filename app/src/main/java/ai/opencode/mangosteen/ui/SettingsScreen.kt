@@ -31,6 +31,7 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.AlertDialog
@@ -66,6 +67,10 @@ import ai.opencode.mangosteen.ui.components.SettingsRow
 import ai.opencode.mangosteen.ui.components.SettingsSectionLabel
 import ai.opencode.mangosteen.ui.components.SettingsToggleRow
 import ai.opencode.mangosteen.ui.components.SheetHeading
+import ai.opencode.mangosteen.ui.components.ThemePickerSheet
+import ai.opencode.mangosteen.ui.components.ThemeSwatches
+import ai.opencode.mangosteen.ui.theme.ThemeCatalog
+import ai.opencode.mangosteen.ui.theme.ThemeStore
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,6 +83,7 @@ fun SettingsScreen(
     var showModels by remember { mutableStateOf(false) }
     var showPrompt by remember { mutableStateOf(false) }
     var showChatPicker by remember { mutableStateOf(false) }
+    var showTheme by remember { mutableStateOf(false) }
     var confirmClear by remember { mutableStateOf(false) }
     var apiDraft by remember { mutableStateOf("") }
     var promptDraft by remember { mutableStateOf("") }
@@ -125,6 +131,17 @@ fun SettingsScreen(
                     )
                 }
             }
+
+            SettingsSectionLabel("Appearance")
+
+            val theme = ThemeCatalog.byId(ThemeStore.themeId)
+            SettingsRow(
+                icon = Icons.Rounded.Palette,
+                title = "Theme",
+                subtitle = theme.name + if (theme.isDark) " · Dark" else " · Light",
+                onClick = { showTheme = true },
+                trailing = { ThemeSwatches(theme.swatches, size = 16.dp) },
+            )
 
             SettingsSectionLabel("Connection")
 
@@ -220,7 +237,7 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(20.dp))
             Text(
-                text = "Mangosteen 2.0 · Material 3 Expressive",
+                text = "Mangosteen 2.1 · Material 3 Expressive",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.outline,
                 textAlign = TextAlign.Center,
@@ -228,6 +245,14 @@ fun SettingsScreen(
             )
             Spacer(Modifier.height(24.dp))
         }
+    }
+
+    if (showTheme) {
+        ThemePickerSheet(
+            selectedId = ThemeStore.themeId,
+            onSelect = { ThemeStore.set(context, it) },
+            onDismiss = { showTheme = false },
+        )
     }
 
     if (showApiKey) {

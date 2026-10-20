@@ -39,7 +39,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import ai.opencode.mangosteen.ui.theme.MangosteenColors
 
 @Composable
 fun MangosteenBackground(content: @Composable BoxScope.() -> Unit) {
@@ -418,13 +417,13 @@ fun AccentBadge(text: String, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(MangosteenColors.Teal)
+            .background(MaterialTheme.colorScheme.tertiary)
             .padding(horizontal = 8.dp, vertical = 4.dp),
     ) {
         Text(
             text = text,
             style = MaterialTheme.typography.labelSmall,
-            color = MangosteenColors.OnTeal,
+            color = MaterialTheme.colorScheme.onTertiary,
         )
     }
 }

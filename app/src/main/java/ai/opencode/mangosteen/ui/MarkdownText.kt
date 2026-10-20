@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -28,7 +29,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import ai.opencode.mangosteen.ui.theme.MangosteenColors
 
 sealed interface MdBlock {
     data class Paragraph(val text: AnnotatedString) : MdBlock
@@ -53,7 +53,11 @@ private val INLINE = Regex(
         + "|\\[([^\\]]+)\\]\\((\\S+?)\\)"
 )
 
-private fun parseMarkdown(text: String): List<MdBlock> {
+private fun parseMarkdown(
+    text: String,
+    codeBg: Color,
+    link: Color,
+): List<MdBlock> {
     val out = ArrayList<MdBlock>()
     val buffer = ArrayList<String>()
 
@@ -70,7 +74,7 @@ private fun parseMarkdown(text: String): List<MdBlock> {
                 val rest = m.groupValues[2]
                 val body = (listOf(rest) + buffer.drop(1)).joinToString("\n")
                 out.add(
-                    MdBlock.Heading(level, annotate(body))
+                    MdBlock.Heading(level, annotate(body, codeBg, link))
                 )
             }
             BULLET.containsMatchIn(trimmed) -> {
@@ -95,7 +99,7 @@ private fun parseMarkdown(text: String): List<MdBlock> {
                     }
                 }
                 bullets.forEachIndexed { i, (lvl, body) ->
-                    out.add(MdBlock.Bullet(lvl, annotate(body)))
+                    out.add(MdBlock.Bullet(lvl, annotate(body, codeBg, link)))
                 }
             }
             NUMBERED.containsMatchIn(trimmed) -> {
@@ -106,18 +110,18 @@ private fun parseMarkdown(text: String): List<MdBlock> {
                     val m = NUMBERED.find(body)
                     if (m != null) {
                         anySeen = true
-                        out.add(MdBlock.Numbered(0, i++, annotate(m.groupValues[2])))
+                        out.add(MdBlock.Numbered(0, i++, annotate(m.groupValues[2], codeBg, link)))
                     } else if (anySeen) {
                         val last = out.removeAt(out.lastIndex) as MdBlock.Numbered
-                        out.add(MdBlock.Numbered(last.level, last.index, annotate(last.text.toString() + "\n" + body)))
+                        out.add(MdBlock.Numbered(last.level, last.index, annotate(last.text.toString() + "\n" + body, codeBg, link)))
                     }
                 }
             }
             trimmed.startsWith(">") -> {
                 val body = buffer.joinToString("\n") { it.trimStart().removePrefix("> ").trimStart() }
-                out.add(MdBlock.Quote(annotate(body)))
+                out.add(MdBlock.Quote(annotate(body, codeBg, link)))
             }
-            else -> out.add(MdBlock.Paragraph(annotate(buffer.joinToString("\n"))))
+            else -> out.add(MdBlock.Paragraph(annotate(buffer.joinToString("\n"), codeBg, link)))
         }
         buffer.clear()
     }
@@ -152,7 +156,7 @@ private fun parseMarkdown(text: String): List<MdBlock> {
     return out
 }
 
-private fun annotate(text: String): AnnotatedString = buildAnnotatedString {
+private fun annotate(text: String, codeBg: Color, link: Color): AnnotatedString = buildAnnotatedString {
     text.split("\n").forEachIndexed { i, line ->
         if (i > 0) append('\n')
         var cursor = 0
@@ -180,10 +184,10 @@ private fun annotate(text: String): AnnotatedString = buildAnnotatedString {
                     append(g[6]); addStyle(SpanStyle(fontStyle = FontStyle.Italic), start, length)
                 }
                 g[7].isNotEmpty() -> {
-                    append(g[7]); addStyle(SpanStyle(fontFamily = FontFamily.Monospace, background = MangosteenColors.CodeBg), start, length)
+                    append(g[7]); addStyle(SpanStyle(fontFamily = FontFamily.Monospace, background = codeBg), start, length)
                 }
                 g[8].isNotEmpty() -> {
-                    append(g[8]); addStyle(SpanStyle(color = MangosteenColors.Link, textDecoration = TextDecoration.Underline), start, length)
+                    append(g[8]); addStyle(SpanStyle(color = link, textDecoration = TextDecoration.Underline), start, length)
                 }
             }
             cursor = match.range.last + 1
@@ -196,15 +200,15 @@ private fun annotate(text: String): AnnotatedString = buildAnnotatedString {
 fun MarkdownText(
     text: String,
     modifier: Modifier = Modifier,
-    color: Color = MangosteenColors.TextPrimary,
 ) {
-    val blocks = remember(text) { parseMarkdown(text) }
+    val scheme = MaterialTheme.colorScheme
+    val blocks = remember(text) { parseMarkdown(text, scheme.surfaceContainerHigh, scheme.tertiary) }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         blocks.forEach { block ->
             when (block) {
                 is MdBlock.Heading -> Text(
                     text = block.text,
-                    color = color,
+                    color = scheme.onSurface,
                     fontSize = when (block.level) {
                         1 -> 24.sp; 2 -> 21.sp; 3 -> 18.sp; 4 -> 17.sp; else -> 16.sp
                     },
@@ -215,20 +219,20 @@ fun MarkdownText(
                 )
                 is MdBlock.Paragraph -> Text(
                     text = block.text,
-                    color = color,
+                    color = scheme.onSurface,
                     fontSize = 16.sp,
                     lineHeight = 24.sp,
                 )
                 is MdBlock.Bullet -> Row(verticalAlignment = Alignment.Top) {
                     Text(
                         "•  ",
-                        color = MangosteenColors.TextSecondary,
+                        color = scheme.onSurfaceVariant,
                         fontSize = 16.sp,
                         lineHeight = 24.sp,
                     )
                     Text(
                         text = block.text,
-                        color = color,
+                        color = scheme.onSurface,
                         fontSize = 16.sp,
                         lineHeight = 24.sp,
                         modifier = Modifier.padding(end = 4.dp),
@@ -238,21 +242,21 @@ fun MarkdownText(
                 is MdBlock.Numbered -> Row(verticalAlignment = Alignment.Top) {
                     Text(
                         "${block.index}. ",
-                        color = MangosteenColors.TextSecondary,
+                        color = scheme.onSurfaceVariant,
                         fontSize = 16.sp,
                         lineHeight = 24.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
                         text = block.text,
-                        color = color,
+                        color = scheme.onSurface,
                         fontSize = 16.sp,
                         lineHeight = 24.sp,
                     )
                 }
                 is MdBlock.Quote -> Text(
                     text = block.text,
-                    color = MangosteenColors.TextSecondary,
+                    color = scheme.onSurfaceVariant,
                     fontSize = 16.sp,
                     lineHeight = 24.sp,
                     modifier = Modifier.padding(start = 12.dp),
@@ -261,13 +265,13 @@ fun MarkdownText(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(MangosteenColors.CodeBg)
+                        .background(scheme.surfaceContainerHigh)
                         .horizontalScroll(rememberScrollState())
                         .padding(horizontal = 14.dp, vertical = 12.dp),
                 ) {
                     Text(
                         text = block.code,
-                        color = color,
+                        color = scheme.onSurface,
                         fontFamily = FontFamily.Monospace,
                         fontSize = 14.sp,
                         lineHeight = 21.sp,

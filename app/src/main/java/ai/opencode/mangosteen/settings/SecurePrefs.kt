@@ -73,6 +73,12 @@ class SecurePrefs(context: Context) {
         .mapNotNull { it.trim().toLongOrNull() }
         .toSet()
 
+    fun themeId(): String = prefs.getString(KEY_THEME, null).orEmpty()
+
+    fun setThemeId(value: String) {
+        prefs.edit().putString(KEY_THEME, value).apply()
+    }
+
     fun toggleFavorite(id: Long) {
         val next = favorites().toMutableSet()
         if (!next.add(id)) next.remove(id)
@@ -134,5 +140,6 @@ class SecurePrefs(context: Context) {
         private const val KEY_PROACTIVE = "proactive_enabled"
         private const val KEY_NOTIFICATIONS = "notifications_enabled"
         private const val KEY_FAVORITES = "favorite_chats"
+        private const val KEY_THEME = "theme_id"
     }
 }

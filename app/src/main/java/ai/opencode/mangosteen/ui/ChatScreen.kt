@@ -819,7 +819,6 @@ private fun AssistantMessage(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 38.dp)
             .then(
                 if (selected) Modifier.border(2.dp, scheme.primary, shape)
                 else Modifier
@@ -852,7 +851,6 @@ private fun AssistantMessage(
                 MarkdownText(
                     text = message.content,
                     modifier = Modifier.fillMaxWidth(),
-                    color = scheme.onSurface,
                 )
             }
         } else if (message.content.isEmpty() && streaming) {
@@ -865,7 +863,6 @@ private fun AssistantMessage(
             MarkdownText(
                 text = message.content,
                 modifier = Modifier.fillMaxWidth(),
-                color = scheme.onSurface,
             )
         }
 

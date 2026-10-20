@@ -18,6 +18,7 @@ Mangosteen keeps the conversation in front of you: streaming replies, visible re
 - **Web search** — toggle search for models that support it, right from the composer.
 - **Image input** — attach a photo and send it to vision-capable models.
 - **Markdown replies** — headings, lists, quotes, inline code, fenced code blocks, and links.
+- **Six themes** — Mangosteen, Ember, Porcelain, Fruit, Crimson, and Moss; switch instantly in Settings → Appearance.
 - **Message actions** — long-press to copy, edit, regenerate, select text, or delete from that point.
 - **Slash commands** — `/system`, `/checkin`, `/clear`, and `/delete`, with an inline command menu.
 - **Proactive check-ins** — schedule a follow-up from chat or let Mangosteen offer one; WorkManager delivers it even after the app closes.
@@ -26,7 +27,7 @@ Mangosteen keeps the conversation in front of you: streaming replies, visible re
 
 ## Design
 
-The UI is built from a custom Material 3 Expressive system rather than a stock template.
+The UI is built from a custom Material 3 Expressive system rather than a stock template. Mangosteen is the default; Ember, Porcelain, Fruit, Crimson, and Moss are included as alternate palettes.
 
 | Role | Color |
 | --- | --- |
