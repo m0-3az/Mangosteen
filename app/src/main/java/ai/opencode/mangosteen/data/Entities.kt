@@ -44,5 +44,7 @@ data class Message(
     val completionTokens: Int? = null,
     /** Local file holding an attached image, if the turn had one. */
     val attachmentPath: String? = null,
-    val attachmentMime: String? = null
+    val attachmentMime: String? = null,
+    /** How long the visible reasoning stream lasted, in milliseconds. */
+    val reasoningMillis: Long? = null
 )

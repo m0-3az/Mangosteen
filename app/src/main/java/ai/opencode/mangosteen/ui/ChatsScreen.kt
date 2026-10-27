@@ -73,7 +73,7 @@ import ai.opencode.mangosteen.ui.components.SheetHeading
 import java.util.Calendar
 
 private enum class ChatFilter(val label: String) {
-    ALL("All"), FAVORITES("Favorites"), WORK("Work"), GROUPS("Groups")
+    ALL("All"), FAVORITES("Favorites")
 }
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
@@ -102,7 +102,6 @@ fun ChatsScreen(
             when (filter) {
                 ChatFilter.ALL -> true
                 ChatFilter.FAVORITES -> favorites.contains(row.conversation.id)
-                ChatFilter.WORK, ChatFilter.GROUPS -> false
             }
         }
         if (query.isBlank()) base
@@ -246,7 +245,6 @@ fun ChatsScreen(
                         Text(
                             text = when (filter) {
                                 ChatFilter.FAVORITES -> "No favorite chats yet"
-                                ChatFilter.WORK, ChatFilter.GROUPS -> "Nothing in ${filter.label} yet"
                                 ChatFilter.ALL -> "No chats match your search"
                             },
                             style = MaterialTheme.typography.bodyMedium,

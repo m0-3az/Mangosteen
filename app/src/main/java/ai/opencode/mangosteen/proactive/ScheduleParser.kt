@@ -27,7 +27,7 @@ object ScheduleParser {
         val cleaned = BLOCK.replace(content) { match ->
             runCatching {
                 val json = JSONObject(match.groupValues[1])
-                val at = json.optString("at")
+                val at = json.optString("at").ifBlank { json.optString("after") }
                 val note = json.optString("note").ifBlank { "check in on the user" }
                 parseTime(at)?.let { schedules.add(Schedule(it, note)) }
             }
@@ -46,6 +46,7 @@ object ScheduleParser {
                 // try the next pattern
             }
         }
-        return null
+        // Models occasionally copy the user's relative phrasing into the block.
+        return CheckinText.parse(value) ?: CheckinText.parse("in $value")
     }
 }

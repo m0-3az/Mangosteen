@@ -18,11 +18,13 @@ class UiMessage(
     completionTokens: Int? = null,
     val attachmentPath: String? = null,
     val attachmentMime: String? = null,
+    reasoningMillis: Long? = null,
 ) {
     var content by mutableStateOf(content)
     var reasoning by mutableStateOf(reasoning)
     var promptTokens by mutableStateOf(promptTokens)
     var completionTokens by mutableStateOf(completionTokens)
+    var reasoningMillis by mutableStateOf(reasoningMillis)
 
     val isUser: Boolean get() = role == "user"
 }

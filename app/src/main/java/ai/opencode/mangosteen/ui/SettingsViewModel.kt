@@ -66,6 +66,17 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         onDone()
     }
 
+    /**
+     * Persists the persona prompt the moment the dialog is confirmed. Waiting
+     * for the screen-level Save button meant a user who pressed the dialog's
+     * Save and then backed out lost the prompt entirely.
+     */
+    fun saveSystemPrompt(value: String) {
+        systemPrompt = value
+        prefs.setDefaultSystemPrompt(value)
+        toast = "System prompt saved"
+    }
+
     fun clearAllChats() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) { repo.deleteAllConversations() }

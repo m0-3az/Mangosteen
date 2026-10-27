@@ -170,7 +170,12 @@ fun SettingsScreen(
             SettingsRow(
                 icon = Icons.AutoMirrored.Rounded.Notes,
                 title = "System prompt",
-                subtitle = "Applies to every chat",
+                subtitle = viewModel.systemPrompt
+                    .lineSequence()
+                    .map { it.trim() }
+                    .firstOrNull { it.isNotEmpty() }
+                    ?.let { if (it.length > 52) it.take(52) + "…" else it }
+                    ?: "Applies to every chat",
                 onClick = {
                     promptDraft = viewModel.systemPrompt
                     showPrompt = true
@@ -335,7 +340,7 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.systemPrompt = promptDraft
+                    viewModel.saveSystemPrompt(promptDraft)
                     showPrompt = false
                 }) {
                     Text("Save", color = MaterialTheme.colorScheme.primary)
