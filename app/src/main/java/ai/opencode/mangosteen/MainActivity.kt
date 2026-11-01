@@ -19,6 +19,7 @@ import ai.opencode.mangosteen.ui.ChatsViewModel
 import ai.opencode.mangosteen.ui.theme.MangosteenTheme
 import ai.opencode.mangosteen.ui.theme.ThemeCatalog
 import ai.opencode.mangosteen.ui.theme.ThemeStore
+import ai.opencode.mangosteen.ui.theme.applyWindowBackground
 
 class MainActivity : ComponentActivity() {
 
@@ -29,7 +30,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ThemeStore.load(this)
-        val dark = ThemeCatalog.byId(ThemeStore.themeId).isDark
+        val theme = ThemeCatalog.byId(ThemeStore.themeId)
+        applyWindowBackground(this, theme)
+        val dark = theme.isDark
         enableEdgeToEdge(
             statusBarStyle = if (dark) SystemBarStyle.dark(Color.TRANSPARENT)
             else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),

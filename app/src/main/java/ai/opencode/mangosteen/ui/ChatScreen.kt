@@ -865,7 +865,10 @@ private fun AssistantMessage(
 
         if (!message.reasoning.isNullOrBlank()) {
             Spacer(Modifier.height(10.dp))
-            ReasoningCard(message, live = streaming && message.id < 0L)
+            ReasoningCard(
+                message,
+                live = streaming && message.id < 0L && message.reasoningMillis == null,
+            )
         }
 
         Spacer(Modifier.height(10.dp))
@@ -924,7 +927,7 @@ private fun ReasoningCard(message: UiMessage, live: Boolean) {
         Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    text = thinkingLabel(message, live),
+                    text = thinkingLabel(message.reasoningMillis, live),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -970,11 +973,10 @@ private fun ReasoningCard(message: UiMessage, live: Boolean) {
     }
 }
 
-private fun thinkingLabel(message: UiMessage, live: Boolean): String {
+internal fun thinkingLabel(reasoningMillis: Long?, live: Boolean): String {
     if (live) return "Thinking…"
-    val millis = message.reasoningMillis
-    if (millis == null || millis < 1_000L) return "Thought for a moment"
-    val seconds = ((millis + 500L) / 1_000L).coerceAtLeast(1L)
+    if (reasoningMillis == null || reasoningMillis < 1_000L) return "Thought for a moment"
+    val seconds = ((reasoningMillis + 500L) / 1_000L).coerceAtLeast(1L)
     if (seconds < 60L) {
         return "Thought for $seconds second${if (seconds == 1L) "" else "s"}"
     }

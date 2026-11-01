@@ -6,6 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Calendar
 import java.util.GregorianCalendar
+import java.util.TimeZone
 
 class CheckinTextTest {
 
@@ -78,6 +79,63 @@ class CheckinTextTest {
     fun `no time in the text means no check-in`() {
         assertNull(CheckinText.parse("whenever you like", now))
         assertNull(CheckinText.parse("", now))
+    }
+
+    @Test
+    fun `relative days combine with a clock time`() {
+        assertEquals(
+            at(2026, Calendar.OCTOBER, 17, 9, 0),
+            CheckinText.parse("check in in 2 days at 9am", now),
+        )
+    }
+
+    @Test
+    fun `chained relative units add up`() {
+        assertEquals(
+            now + 150 * 60_000L,
+            CheckinText.parse("remind me in 2 hours and 30 minutes", now),
+        )
+        assertEquals(
+            now + 150 * 60_000L,
+            CheckinText.parse("remind me in 2 hours, 30 minutes", now),
+        )
+    }
+
+    @Test
+    fun `a bare time after am does not inherit am`() {
+        assertEquals(
+            at(2026, Calendar.OCTOBER, 16, 13, 0),
+            CheckinText.parse("tomorrow at 9am, finish at 1", now),
+        )
+    }
+
+    @Test
+    fun `tonight keeps an evening clock`() {
+        assertEquals(
+            at(2026, Calendar.OCTOBER, 15, 21, 0),
+            CheckinText.parse("tonight at 9", now),
+        )
+    }
+
+    @Test
+    fun `relative days keep wall clock time across dst`() {
+        val original = TimeZone.getDefault()
+        TimeZone.setDefault(TimeZone.getTimeZone("Europe/Berlin"))
+        try {
+            val start = at(2026, Calendar.OCTOBER, 24, 9, 0)
+            assertEquals(
+                at(2026, Calendar.OCTOBER, 26, 9, 0),
+                CheckinText.parse("in 2 days at 9am", start),
+            )
+        } finally {
+            TimeZone.setDefault(original)
+        }
+    }
+
+    @Test
+    fun `absurd offsets do not overflow into an instant check-in`() {
+        assertNull(CheckinText.parse("in 200000000000 days", now))
+        assertNull(CheckinText.parse("in 999999999999999999999 hours", now))
     }
 
     @Test

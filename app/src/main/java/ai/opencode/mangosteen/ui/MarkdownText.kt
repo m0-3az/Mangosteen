@@ -47,12 +47,48 @@ sealed interface MdBlock {
     data object Rule : MdBlock
 }
 
-private val HEADING = Regex("""^[ \t]{0,3}(#{1,6})[ \t]+(.*?)[ \t]*#*[ \t]*$""")
+private val HEADING = Regex("""^[ \t]{0,3}(#{1,6})[ \t]+(.*?)(?:[ \t]+#+)?[ \t]*$""")
 private val BULLET = Regex("""^([ \t]*)([-*+•])[ \t]+(.*)$""")
 private val NUMBERED = Regex("""^([ \t]*)(\d{1,9})[.)][ \t]+(.*)$""")
 private val QUOTE = Regex("""^[ \t]{0,3}>[ \t]?(.*)$""")
-private val FENCE = Regex("""^[ \t]{0,3}(```|~~~)[ \t]*([\w#+.-]*)[ \t]*$""")
 private val RULE = Regex("""^[ \t]{0,3}([-*_])[ \t]*(?:\1[ \t]*){2,}$""")
+
+/** A fenced code marker: the fence may be indented under a list item. */
+private data class FenceMarker(
+    val indent: Int,
+    val char: Char,
+    val length: Int,
+    val language: String?,
+)
+
+private fun fenceOpen(line: String): FenceMarker? {
+    val indent = line.indexOfFirst { it != ' ' && it != '\t' }
+    if (indent < 0) return null
+    val char = line[indent]
+    if (char != '`' && char != '~') return null
+    var end = indent
+    while (end < line.length && line[end] == char) end++
+    val length = end - indent
+    if (length < 3) return null
+    val info = line.substring(end).trim()
+    if (char == '`' && info.contains('`')) return null
+    return FenceMarker(indent, char, length, info.ifBlank { null })
+}
+
+/** A closing fence is marker-only, the same character, and at least as long. */
+private fun fenceCloses(line: String, marker: FenceMarker): Boolean {
+    val start = line.indexOfFirst { it != ' ' && it != '\t' }
+    if (start < 0 || line[start] != marker.char) return false
+    var end = start
+    while (end < line.length && line[end] == marker.char) end++
+    return end - start >= marker.length && line.substring(end).isBlank()
+}
+
+private fun stripIndent(line: String, width: Int): String {
+    var end = 0
+    while (end < line.length && end < width && (line[end] == ' ' || line[end] == '\t')) end++
+    return line.substring(end)
+}
 
 /**
  * Inline markup ordered so that code spans win over everything else and links
@@ -60,15 +96,15 @@ private val RULE = Regex("""^[ \t]{0,3}([-*_])[ \t]*(?:\1[ \t]*){2,}$""")
  */
 private val INLINE = Regex(
     "`([^`\\n]+)`" +
-        "|\\[([^\\]]+)\\]\\(([^)\\s]+)\\)" +
+        "|\\[([^\\]]+)\\]\\(((?:[^()\\s]|\\([^()\\s]*\\))+)\\)" +
         "|\\*\\*\\*(.+?)\\*\\*\\*" +
         "|___(.+?)___" +
         "|\\*\\*(.+?)\\*\\*" +
         "|__(.+?)__" +
         "|~~(.+?)~~" +
         "|==(.+?)==" +
-        "|\\*([^*\\n]+?)\\*" +
-        "|(?<![\\w_])_([^_\\n]+?)_(?![\\w_])" +
+        "|\\*([^\\s*](?:[^*\\n]*[^\\s*])?)\\*" +
+        "|(?<![\\w_])_([^\\s_](?:[^_\\n]*[^\\s_])?)_(?![\\w_])" +
         "|<((?:https?://|mailto:)[^>\\s]+)>"
 )
 
@@ -78,12 +114,19 @@ private fun levelFor(indent: Int): Int = (indent / 2).coerceIn(0, 6)
 
 private fun isBlockStart(line: String): Boolean =
     line.isBlank() ||
-        FENCE.matchEntire(line) != null ||
+        fenceOpen(line) != null ||
         HEADING.matchEntire(line) != null ||
         RULE.matchEntire(line) != null ||
         QUOTE.matchEntire(line) != null ||
         BULLET.matchEntire(line) != null ||
         NUMBERED.matchEntire(line) != null
+
+/** Only an ordered marker of one may interrupt an existing paragraph. */
+private fun isParagraphBreak(line: String): Boolean {
+    if (!isBlockStart(line)) return false
+    val numbered = NUMBERED.matchEntire(line) ?: return true
+    return numbered.groupValues[2].toIntOrNull() == 1
+}
 
 /**
  * Parses the Markdown flavours models actually emit. The parser is deliberately
@@ -104,22 +147,19 @@ internal fun parseMarkdown(text: String, codeBg: Color, link: Color): List<MdBlo
             continue
         }
 
-        val fence = FENCE.matchEntire(line)
+        val fence = fenceOpen(line)
         if (fence != null) {
-            val marker = fence.groupValues[1]
-            val language = fence.groupValues[2].ifBlank { null }
             val code = ArrayList<String>()
             i++
             while (i < lines.size) {
-                val closing = FENCE.matchEntire(lines[i])
-                if (closing != null && closing.groupValues[1] == marker) {
+                if (fenceCloses(lines[i], fence)) {
                     i++
                     break
                 }
-                code.add(lines[i])
+                code.add(stripIndent(lines[i], fence.indent))
                 i++
             }
-            out.add(MdBlock.Code(language, code.joinToString("\n")))
+            out.add(MdBlock.Code(fence.language, code.joinToString("\n")))
             continue
         }
 
@@ -144,8 +184,15 @@ internal fun parseMarkdown(text: String, codeBg: Color, link: Color): List<MdBlo
         if (QUOTE.matchEntire(line) != null) {
             val quoted = ArrayList<String>()
             while (i < lines.size) {
-                val match = QUOTE.matchEntire(lines[i]) ?: break
-                quoted.add(match.groupValues[1].trimEnd())
+                val candidate = lines[i]
+                val match = QUOTE.matchEntire(candidate)
+                if (match != null) {
+                    quoted.add(match.groupValues[1].trimEnd())
+                    i++
+                    continue
+                }
+                if (candidate.isBlank() || isParagraphBreak(candidate)) break
+                quoted.add(candidate.trim())
                 i++
             }
             out.add(MdBlock.Quote(annotate(quoted.joinToString("\n"), codeBg, link)))
@@ -160,7 +207,7 @@ internal fun parseMarkdown(text: String, codeBg: Color, link: Color): List<MdBlo
         val paragraph = ArrayList<String>()
         while (i < lines.size) {
             val candidate = lines[i]
-            if (isBlockStart(candidate)) break
+            if (isParagraphBreak(candidate)) break
             paragraph.add(candidate.trim())
             i++
         }
@@ -219,9 +266,8 @@ private fun parseList(
             continue
         }
 
-        val indent = indentWidth(line.takeWhile { it == ' ' || it == '\t' })
         val last = items.lastOrNull()
-        if (last != null && indent >= 2 && !isBlockStart(line)) {
+        if (last != null && !isBlockStart(line)) {
             last.body.append('\n').append(line.trim())
             i++
             continue
@@ -229,12 +275,17 @@ private fun parseList(
         break
     }
 
+    val counters = HashMap<Int, Int>()
     items.forEach { item ->
+        counters.keys.removeAll { it > item.level }
         val body = annotate(item.body.toString(), codeBg, link)
         val number = item.number
         if (number != null) {
-            out.add(MdBlock.Numbered(item.level, number, body))
+            val index = (counters[item.level] ?: (number - 1)) + 1
+            counters[item.level] = index
+            out.add(MdBlock.Numbered(item.level, index, body))
         } else {
+            counters.keys.removeAll { it >= item.level }
             out.add(MdBlock.Bullet(item.level, item.marker ?: "•", body))
         }
     }

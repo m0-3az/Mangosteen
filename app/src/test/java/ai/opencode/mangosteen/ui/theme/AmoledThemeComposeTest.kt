@@ -45,6 +45,10 @@ class AmoledThemeComposeTest {
             "onSurface contrast is too low",
             contrast(scheme.onSurface, theme.surfaceLow) >= 4.5f,
         )
+        assertTrue(
+            "onPrimary contrast is too low",
+            contrast(scheme.onPrimary, scheme.primary) >= 4.5f,
+        )
 
         composeRule.setContent {
             MaterialTheme(colorScheme = scheme) {

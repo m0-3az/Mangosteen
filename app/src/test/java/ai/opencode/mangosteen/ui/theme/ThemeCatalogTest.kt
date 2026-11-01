@@ -57,6 +57,7 @@ class ThemeCatalogTest {
         ThemeCatalog.all.forEach { theme ->
             assertEquals(4, theme.swatches.size)
             assertEquals(theme.swatches.distinct().size, theme.swatches.size)
+            assertEquals(theme.background, theme.swatches.first())
         }
     }
 

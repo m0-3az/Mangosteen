@@ -1,7 +1,6 @@
 package ai.opencode.mangosteen.ui
 
 import android.app.Application
-import android.os.SystemClock
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -35,7 +34,6 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.atomic.AtomicLong
 
 data class Attachment(val path: String, val mime: String)
 
@@ -288,20 +286,17 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
         val api = GoApiClient(key)
         client = api
-        val reasoningStartedAt = AtomicLong(0L)
-        val reasoningFinishedAt = AtomicLong(0L)
+        val timer = ReasoningTimer()
 
         job = viewModelScope.launch {
             fun finishThinking() {
-                if (streamingMessage.reasoningMillis != null) return
-                val started = reasoningStartedAt.get()
-                if (started <= 0L) return
-                val ended = reasoningFinishedAt.get()
-                    .takeIf { it >= started }
-                    ?: SystemClock.elapsedRealtime()
-                streamingMessage.reasoningMillis = (ended - started).coerceAtLeast(0L)
+                val millis = timer.finish() ?: return
+                if (streamingMessage.reasoningMillis == null) {
+                    streamingMessage.reasoningMillis = millis
+                }
             }
 
+            timer.start()
             try {
                 val result = withContext(Dispatchers.IO) {
                     val history = historySnapshot
@@ -318,13 +313,15 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                         model, buildSystemPrompt(conv.systemPrompt), history, conv.sessionId, options,
                         onNotice = { notice -> ui.launch { toast = notice } },
                     ) { content, reasoning ->
-                        if (reasoning.isNotEmpty()) {
-                            val now = SystemClock.elapsedRealtime()
-                            reasoningStartedAt.compareAndSet(0L, now)
-                            reasoningFinishedAt.set(now)
-                        }
+                        if (reasoning.isNotEmpty()) timer.onReasoning()
+                        val frozen = if (content.isNotEmpty()) timer.onContent() else null
                         ui.launch {
-                            if (content.isNotEmpty()) streamingMessage.content += content
+                            if (content.isNotEmpty()) {
+                                streamingMessage.content += content
+                                if (frozen != null && streamingMessage.reasoningMillis == null) {
+                                    streamingMessage.reasoningMillis = frozen
+                                }
+                            }
                             if (reasoning.isNotEmpty()) {
                                 streamingMessage.reasoning =
                                     (streamingMessage.reasoning ?: "") + reasoning
@@ -534,7 +531,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun queueReminders(conv: Conversation, schedules: List<ScheduleParser.Schedule>) {
         viewModelScope.launch {
-            for (schedule in schedules) {
+            val now = System.currentTimeMillis()
+            for (schedule in schedules.filter { it.fireAt > now }) {
                 val id = withContext(Dispatchers.IO) {
                     repo.addReminder(conv.id, schedule.fireAt, schedule.note)
                 }
@@ -549,6 +547,10 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     /** Manual path, so a check-in can be queued even if the model didn't offer one. */
     fun scheduleCheckIn(fireAt: Long, note: String = "check in on the user") {
         val conv = conversation ?: return
+        if (!prefs.proactiveEnabled()) {
+            toast = "Turn on proactive check-ins in Settings first"
+            return
+        }
         viewModelScope.launch {
             val id = withContext(Dispatchers.IO) { repo.addReminder(conv.id, fireAt, note) }
             ProactiveScheduler.schedule(getApplication(), Reminder(id, conv.id, fireAt, note))

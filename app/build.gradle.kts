@@ -1,4 +1,5 @@
 import java.util.Properties
+import org.gradle.api.tasks.testing.Test
 
 plugins {
     id("com.android.application")
@@ -98,4 +99,15 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     testImplementation("androidx.compose.ui:ui-test-junit4")
+}
+
+// ui-test-manifest is debug-only, so the Compose rule cannot run in the
+// release unit-test variant. Keep it in the debug suite that `gradlew test`
+// already executes.
+tasks.withType<Test>().configureEach {
+    if (name.contains("Release")) {
+        filter {
+            excludeTestsMatching("*AmoledThemeComposeTest")
+        }
+    }
 }
