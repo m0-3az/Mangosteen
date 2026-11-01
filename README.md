@@ -18,7 +18,7 @@ Mangosteen keeps the conversation in front of you: streaming replies, visible re
 - **Web search** — toggle search for models that support it, right from the composer.
 - **Image input** — attach a photo and send it to vision-capable models.
 - **Markdown replies** — headings, lists, quotes, inline code, fenced code blocks, and links.
-- **Six themes** — Mangosteen, Ember, Porcelain, Fruit, Crimson, and Moss; switch instantly in Settings → Appearance.
+- **Seven themes** — Mangosteen, AMOLED, Ember, Porcelain, Fruit, Crimson, and Moss; switch instantly in Settings → Appearance.
 - **Message actions** — long-press to copy, edit, regenerate, select text, or delete from that point.
 - **Slash commands** — `/system`, `/checkin`, `/clear`, and `/delete`, with an inline command menu.
 - **Proactive check-ins** — schedule a follow-up from chat or let Mangosteen offer one; WorkManager delivers it even after the app closes.
@@ -27,7 +27,7 @@ Mangosteen keeps the conversation in front of you: streaming replies, visible re
 
 ## Design
 
-The UI is built from a custom Material 3 Expressive system rather than a stock template. Mangosteen is the default; Ember, Porcelain, Fruit, Crimson, and Moss are included as alternate palettes.
+The UI is built from a custom Material 3 Expressive system rather than a stock template. Mangosteen is the default; AMOLED, Ember, Porcelain, Fruit, Crimson, and Moss are included as alternate palettes.
 
 | Role | Color |
 | --- | --- |
@@ -92,7 +92,7 @@ Chats use the default model until you switch models inside a conversation. The a
 | Command | What it does |
 | --- | --- |
 | `/system` | Set this chat's system prompt |
-| `/checkin <when>` | Schedule a check-in, e.g. `/checkin exam tomorrow at 9am` |
+| `/checkin <when>` | Schedule a check-in, e.g. `/checkin in 2 hours` or `/checkin exam tomorrow at 9am` |
 | `/clear` | Remove every message in the current chat |
 | `/delete` | Delete the current chat |
 

@@ -129,7 +129,7 @@ private data class SlashCommand(
 
 private val SLASH_COMMANDS = listOf(
     SlashCommand("/system", "Set the system prompt", icon = Icons.Rounded.Tune),
-    SlashCommand("/checkin", "Schedule a check-in", takesArgs = true, icon = Icons.Rounded.Schedule),
+    SlashCommand("/checkin", "In 2 hours, after 10m…", takesArgs = true, icon = Icons.Rounded.Schedule),
     SlashCommand("/clear", "Clear this chat", icon = Icons.Rounded.DeleteSweep),
     SlashCommand("/delete", "Delete this chat", icon = Icons.Rounded.DeleteOutline),
 )
@@ -185,6 +185,7 @@ fun ChatScreen(
     var pendingDelete by remember { mutableStateOf<UiMessage?>(null) }
     var showRename by remember { mutableStateOf(false) }
     var showSystem by remember { mutableStateOf(false) }
+    var showCheckIn by remember { mutableStateOf(false) }
     var confirmClear by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
 
@@ -235,7 +236,7 @@ fun ChatScreen(
                     viewModel.scheduleCheckIn(fireAt, argument)
                     input = ""
                 } else {
-                    viewModel.toast = "Add a time, like /checkin exam tomorrow at 9am"
+                    viewModel.toast = "Add a time, like /checkin in 2 hours or tomorrow at 9am"
                 }
             }
             command?.name == "/clear" -> {
@@ -385,6 +386,7 @@ fun ChatScreen(
                 showMore = false
                 viewModel.scheduleCheckIn(viewModel.tomorrowMorning())
             },
+            onCheckInCustom = { showMore = false; showCheckIn = true },
             onClear = { showMore = false; confirmClear = true },
             onDelete = { showMore = false; confirmDelete = true },
         )
@@ -446,6 +448,27 @@ fun ChatScreen(
             singleLine = false,
             onDismiss = { showSystem = false },
             onConfirm = { viewModel.setSystemPrompt(it); showSystem = false },
+        )
+    }
+
+    if (showCheckIn) {
+        TextInputDialog(
+            title = "Schedule a check-in",
+            initial = "",
+            placeholder = "in 2 hours, after 10 minutes, tomorrow at 9am",
+            onDismiss = { showCheckIn = false },
+            onConfirm = { raw ->
+                val fireAt = CheckinText.parse(raw)
+                if (fireAt != null) {
+                    viewModel.scheduleCheckIn(
+                        fireAt,
+                        raw.trim().ifBlank { "check in on the user" },
+                    )
+                    showCheckIn = false
+                } else {
+                    viewModel.toast = "Try \"in 2 hours\" or \"tomorrow at 9am\""
+                }
+            },
         )
     }
 
@@ -842,7 +865,10 @@ private fun AssistantMessage(
 
         if (!message.reasoning.isNullOrBlank()) {
             Spacer(Modifier.height(10.dp))
-            ReasoningCard(message)
+            ReasoningCard(
+                message,
+                live = streaming && message.id < 0L && message.reasoningMillis == null,
+            )
         }
 
         Spacer(Modifier.height(10.dp))
@@ -881,7 +907,7 @@ private fun AssistantMessage(
 }
 
 @Composable
-private fun ReasoningCard(message: UiMessage) {
+private fun ReasoningCard(message: UiMessage, live: Boolean) {
     var expanded by remember(message) { mutableStateOf(false) }
     val summary = remember(message.reasoning) {
         message.reasoning.orEmpty()
@@ -901,8 +927,7 @@ private fun ReasoningCard(message: UiMessage) {
         Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    // shortcut: the API does not report reasoning time, label it generically
-                    text = "Thought for 8s",
+                    text = thinkingLabel(message.reasoningMillis, live),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -945,6 +970,22 @@ private fun ReasoningCard(message: UiMessage) {
                 modifier = Modifier.size(20.dp),
             )
         }
+    }
+}
+
+internal fun thinkingLabel(reasoningMillis: Long?, live: Boolean): String {
+    if (live) return "Thinking…"
+    if (reasoningMillis == null || reasoningMillis < 1_000L) return "Thought for a moment"
+    val seconds = ((reasoningMillis + 500L) / 1_000L).coerceAtLeast(1L)
+    if (seconds < 60L) {
+        return "Thought for $seconds second${if (seconds == 1L) "" else "s"}"
+    }
+    val minutes = seconds / 60L
+    val rest = seconds % 60L
+    return if (rest == 0L) {
+        "Thought for ${minutes}m"
+    } else {
+        "Thought for ${minutes}m ${rest}s"
     }
 }
 
@@ -1393,6 +1434,7 @@ private fun MoreSheet(
     onSystemPrompt: () -> Unit,
     onCheckInHour: () -> Unit,
     onCheckInTomorrow: () -> Unit,
+    onCheckInCustom: () -> Unit,
     onClear: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -1414,13 +1456,14 @@ private fun MoreSheet(
         ) {
             SheetHeading(
                 title = "Chat",
-                subtitle = "Rename, schedule a check-in, or start over.",
+                subtitle = "Relative check-ins work: in 2 hours, after 10 minutes.",
             )
             Spacer(Modifier.height(16.dp))
             SheetActionRow("Rename", Icons.Rounded.Edit, onRename)
             SheetActionRow("System prompt", Icons.Rounded.Tune, onSystemPrompt)
             SoftDivider()
             Spacer(Modifier.height(4.dp))
+            SheetActionRow("Check in after…", Icons.Rounded.Schedule, onCheckInCustom)
             SheetActionRow("Check in 1 hour", Icons.Rounded.Schedule, onCheckInHour)
             SheetActionRow("Check in tomorrow 9am", Icons.Rounded.Alarm, onCheckInTomorrow)
             Spacer(Modifier.height(4.dp))
@@ -1529,6 +1572,7 @@ private fun TextInputDialog(
     title: String,
     initial: String,
     singleLine: Boolean = true,
+    placeholder: String = "Optional",
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
 ) {
@@ -1570,7 +1614,7 @@ private fun TextInputDialog(
                 )
                 if (value.isEmpty()) {
                     Text(
-                        text = "Optional",
+                        text = placeholder,
                         fontSize = 15.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

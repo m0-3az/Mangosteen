@@ -139,7 +139,8 @@ class ChatRepository(context: Context) {
         val out = ArrayList<Message>()
         helper.readableDatabase.rawQuery(
             "SELECT id,conversation_id,role,content,reasoning,model_id,created_at," +
-                "prompt_tokens,completion_tokens,attachment_path,attachment_mime " +
+                "prompt_tokens,completion_tokens,attachment_path,attachment_mime," +
+                "reasoning_millis " +
                 "FROM ${ChatDb.T_MSG} WHERE conversation_id=? ORDER BY id ASC",
             arrayOf(conversationId.toString())
         ).use { c ->
@@ -156,7 +157,8 @@ class ChatRepository(context: Context) {
                         promptTokens = if (c.isNull(7)) null else c.getInt(7),
                         completionTokens = if (c.isNull(8)) null else c.getInt(8),
                         attachmentPath = if (c.isNull(9)) null else c.getString(9),
-                        attachmentMime = if (c.isNull(10)) null else c.getString(10)
+                        attachmentMime = if (c.isNull(10)) null else c.getString(10),
+                        reasoningMillis = if (c.isNull(11)) null else c.getLong(11)
                     )
                 )
             }
@@ -183,6 +185,7 @@ class ChatRepository(context: Context) {
             put("completion_tokens", message.completionTokens)
             put("attachment_path", message.attachmentPath)
             put("attachment_mime", message.attachmentMime)
+            put("reasoning_millis", message.reasoningMillis)
         }
         return helper.writableDatabase.insert(ChatDb.T_MSG, null, values)
     }

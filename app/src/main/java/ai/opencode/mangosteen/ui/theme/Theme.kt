@@ -1,6 +1,7 @@
 package ai.opencode.mangosteen.ui.theme
 
 import android.app.Activity
+import android.graphics.drawable.ColorDrawable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
@@ -9,10 +10,12 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -56,7 +59,7 @@ data class MangosteenThemeSpec(
     val link: Color,
 ) {
     /** Compact preview shown in the theme picker. */
-    val swatches: List<Color> get() = listOf(primary, primaryContainer, secondary, tertiary)
+    val swatches: List<Color> get() = listOf(background, primary, secondary, tertiary)
 
     val allColors: List<Color> get() = listOf(
         background, surfaceLowest, surfaceLow, surface, surfaceHigh, surfaceHighest,
@@ -126,7 +129,7 @@ object ThemeCatalog {
             surfaceHigh = Color(0xFF35243F),
             surfaceHighest = Color(0xFF3F2C4A),
             primary = Color(0xFFD34B84),
-            onPrimary = Color(0xFF2B0A1A),
+            onPrimary = Color(0xFF1A0510),
             primaryContainer = Color(0xFF6A2C91),
             onPrimaryContainer = Color(0xFFF5EAF9),
             secondary = Color(0xFFFFC300),
@@ -144,6 +147,38 @@ object ThemeCatalog {
             errorContainer = Color(0xFF93000A),
             onErrorContainer = Color(0xFFFFDAD6),
             codeBg = Color(0xFF35243F),
+            link = Color(0xFF4ECDC4),
+        ),
+        MangosteenThemeSpec(
+            id = "amoled",
+            name = "AMOLED",
+            tagline = "Black · true black & vivid accents",
+            isDark = true,
+            background = Color(0xFF000000),
+            surfaceLowest = Color(0xFF000000),
+            surfaceLow = Color(0xFF050505),
+            surface = Color(0xFF0A0A0A),
+            surfaceHigh = Color(0xFF141414),
+            surfaceHighest = Color(0xFF1E1E1E),
+            primary = Color(0xFFD34B84),
+            onPrimary = Color(0xFF1A0510),
+            primaryContainer = Color(0xFF6A2C91),
+            onPrimaryContainer = Color(0xFFF5EAF9),
+            secondary = Color(0xFFFFC300),
+            onSecondary = Color(0xFF3A2A00),
+            secondaryContainer = Color(0xFF5C4600),
+            onSecondaryContainer = Color(0xFFFFE7A3),
+            tertiary = Color(0xFF4ECDC4),
+            onTertiary = Color(0xFF003733),
+            textPrimary = Color(0xFFF2F2F2),
+            textSecondary = Color(0xFFBDBDBD),
+            outline = Color(0xFF8A8A8A),
+            outlineVariant = Color(0xFF262626),
+            error = Color(0xFFFFB4AB),
+            onError = Color(0xFF690005),
+            errorContainer = Color(0xFF93000A),
+            onErrorContainer = Color(0xFFFFDAD6),
+            codeBg = Color(0xFF141414),
             link = Color(0xFF4ECDC4),
         ),
         MangosteenThemeSpec(
@@ -428,6 +463,14 @@ private val AppShapes = Shapes(
 )
 
 /**
+ * Applies the selected theme's background to the activity window so the gap
+ * before Compose draws matches the theme instead of the old purple launch colour.
+ */
+fun applyWindowBackground(activity: Activity, theme: MangosteenThemeSpec) {
+    activity.window.setBackgroundDrawable(ColorDrawable(theme.background.toArgb()))
+}
+
+/**
  * App theme. Reads [ThemeStore] so a theme change in Settings recomposes
  * every screen immediately.
  */
@@ -435,6 +478,11 @@ private val AppShapes = Shapes(
 fun MangosteenTheme(content: @Composable () -> Unit) {
     val theme = ThemeCatalog.byId(ThemeStore.themeId)
     val view = LocalView.current
+
+    LaunchedEffect(theme.id) {
+        val window = (view.context as? Activity)?.window ?: return@LaunchedEffect
+        window.setBackgroundDrawable(ColorDrawable(theme.background.toArgb()))
+    }
 
     SideEffect {
         val window = (view.context as? Activity)?.window ?: return@SideEffect

@@ -8,7 +8,7 @@ class ChatDb(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) 
 
     companion object {
         const val NAME = "mangosteen.db"
-        const val VERSION = 5
+        const val VERSION = 6
         const val T_CONV = "conversations"
         const val T_MSG = "messages"
         const val T_REM = "reminders"
@@ -39,6 +39,7 @@ class ChatDb(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) 
                 "completion_tokens INTEGER," +
                 "attachment_path TEXT," +
                 "attachment_mime TEXT," +
+                "reasoning_millis INTEGER," +
                 "FOREIGN KEY(conversation_id) REFERENCES $T_CONV(id) ON DELETE CASCADE)"
         )
         db.execSQL("CREATE INDEX idx_msg_conv ON $T_MSG(conversation_id)")
@@ -73,6 +74,9 @@ class ChatDb(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) 
         if (oldVersion < 5) {
             db.execSQL("ALTER TABLE $T_MSG ADD COLUMN attachment_path TEXT")
             db.execSQL("ALTER TABLE $T_MSG ADD COLUMN attachment_mime TEXT")
+        }
+        if (oldVersion < 6) {
+            db.execSQL("ALTER TABLE $T_MSG ADD COLUMN reasoning_millis INTEGER")
         }
     }
 

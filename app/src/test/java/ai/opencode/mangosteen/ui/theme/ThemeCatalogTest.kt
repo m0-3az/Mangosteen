@@ -1,5 +1,6 @@
 package ai.opencode.mangosteen.ui.theme
 
+import androidx.compose.ui.graphics.Color
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -17,7 +18,18 @@ class ThemeCatalogTest {
     fun everyThemeHasAUniqueId() {
         val ids = ThemeCatalog.all.map { it.id }
         assertEquals(ids.size, ids.toSet().size)
-        assertTrue(ids.containsAll(listOf("mangosteen", "ember", "porcelain", "fruit", "crimson", "moss")))
+        assertTrue(ids.containsAll(listOf("mangosteen", "amoled", "ember", "porcelain", "fruit", "crimson", "moss")))
+    }
+
+    @Test
+    fun amoledUsesPureBlackAndKeepsMangosteenAccents() {
+        val amoled = ThemeCatalog.byId("amoled")
+        val mangosteen = ThemeCatalog.byId("mangosteen")
+        assertEquals(Color.Black, amoled.background)
+        assertTrue(amoled.isDark)
+        assertEquals(mangosteen.primary, amoled.primary)
+        assertEquals(mangosteen.secondary, amoled.secondary)
+        assertEquals(mangosteen.tertiary, amoled.tertiary)
     }
 
     @Test
@@ -45,6 +57,7 @@ class ThemeCatalogTest {
         ThemeCatalog.all.forEach { theme ->
             assertEquals(4, theme.swatches.size)
             assertEquals(theme.swatches.distinct().size, theme.swatches.size)
+            assertEquals(theme.background, theme.swatches.first())
         }
     }
 

@@ -30,7 +30,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 data class Attachment(val path: String, val mime: String)
 
@@ -78,7 +81,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                     UiMessage(
                         it.id, it.role, it.content, it.reasoning, it.createdAt,
                         it.promptTokens, it.completionTokens,
-                        it.attachmentPath, it.attachmentMime,
+                        it.attachmentPath, it.attachmentMime, it.reasoningMillis,
                     )
                 }
             )
@@ -283,8 +286,17 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
         val api = GoApiClient(key)
         client = api
+        val timer = ReasoningTimer()
 
         job = viewModelScope.launch {
+            fun finishThinking() {
+                val millis = timer.finish() ?: return
+                if (streamingMessage.reasoningMillis == null) {
+                    streamingMessage.reasoningMillis = millis
+                }
+            }
+
+            timer.start()
             try {
                 val result = withContext(Dispatchers.IO) {
                     val history = historySnapshot
@@ -301,8 +313,15 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                         model, buildSystemPrompt(conv.systemPrompt), history, conv.sessionId, options,
                         onNotice = { notice -> ui.launch { toast = notice } },
                     ) { content, reasoning ->
+                        if (reasoning.isNotEmpty()) timer.onReasoning()
+                        val frozen = if (content.isNotEmpty()) timer.onContent() else null
                         ui.launch {
-                            if (content.isNotEmpty()) streamingMessage.content += content
+                            if (content.isNotEmpty()) {
+                                streamingMessage.content += content
+                                if (frozen != null && streamingMessage.reasoningMillis == null) {
+                                    streamingMessage.reasoningMillis = frozen
+                                }
+                            }
                             if (reasoning.isNotEmpty()) {
                                 streamingMessage.reasoning =
                                     (streamingMessage.reasoning ?: "") + reasoning
@@ -310,6 +329,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                         }
                     }
                 }
+                finishThinking()
                 val (clean, schedules) = ScheduleParser.extract(result.content)
                 if (schedules.isNotEmpty()) {
                     streamingMessage.content = clean
@@ -320,12 +340,14 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 maybeAutoTitle(conv, historySnapshot)
             } catch (cancel: CancellationException) {
+                finishThinking()
                 persistAssistant(
                     conv, streamingMessage,
                     ChatMessage("assistant", streamingMessage.content, streamingMessage.reasoning),
                 )
                 throw cancel
             } catch (error: Exception) {
+                finishThinking()
                 val detail = error.message ?: "Error"
                 streamingMessage.content = if (streamingMessage.content.isEmpty()) {
                     "⚠ $detail"
@@ -354,6 +376,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                     0L, conv.id, "assistant", result.content, result.reasoning,
                     conv.modelId, System.currentTimeMillis(),
                     result.usage?.promptTokens, result.usage?.completionTokens,
+                    reasoningMillis = uiMessage.reasoningMillis,
                 )
             ).also { repo.touch(conv.id) }
         }
@@ -508,7 +531,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun queueReminders(conv: Conversation, schedules: List<ScheduleParser.Schedule>) {
         viewModelScope.launch {
-            for (schedule in schedules) {
+            val now = System.currentTimeMillis()
+            for (schedule in schedules.filter { it.fireAt > now }) {
                 val id = withContext(Dispatchers.IO) {
                     repo.addReminder(conv.id, schedule.fireAt, schedule.note)
                 }
@@ -523,10 +547,15 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     /** Manual path, so a check-in can be queued even if the model didn't offer one. */
     fun scheduleCheckIn(fireAt: Long, note: String = "check in on the user") {
         val conv = conversation ?: return
+        if (!prefs.proactiveEnabled()) {
+            toast = "Turn on proactive check-ins in Settings first"
+            return
+        }
         viewModelScope.launch {
             val id = withContext(Dispatchers.IO) { repo.addReminder(conv.id, fireAt, note) }
             ProactiveScheduler.schedule(getApplication(), Reminder(id, conv.id, fireAt, note))
-            toast = "Check-in scheduled"
+            val whenText = SimpleDateFormat("h:mma", Locale.getDefault()).format(Date(fireAt))
+            toast = "Check-in scheduled for $whenText"
         }
     }
 
