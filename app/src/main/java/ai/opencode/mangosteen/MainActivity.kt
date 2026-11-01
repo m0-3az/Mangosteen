@@ -28,10 +28,10 @@ class MainActivity : ComponentActivity() {
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
         ThemeStore.load(this)
         val theme = ThemeCatalog.byId(ThemeStore.themeId)
         applyWindowBackground(this, theme)
+        super.onCreate(savedInstanceState)
         val dark = theme.isDark
         enableEdgeToEdge(
             statusBarStyle = if (dark) SystemBarStyle.dark(Color.TRANSPARENT)

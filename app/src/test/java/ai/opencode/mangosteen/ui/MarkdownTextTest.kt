@@ -165,6 +165,117 @@ class MarkdownTextTest {
     }
 
     @Test
+    fun `javascript link renders as plain text`() {
+        val result = blocks("[tap](javascript:alert(1))")
+        val text = (result.single() as MdBlock.Paragraph).text
+
+        assertEquals("tap", text.text)
+        assertTrue(text.getLinkAnnotations(0, text.length).isEmpty())
+    }
+
+    @Test
+    fun `intent link renders as plain text`() {
+        val result = blocks("[open](intent://scan/#Intent;scheme=zxing;end)")
+        val text = (result.single() as MdBlock.Paragraph).text
+
+        assertEquals("open", text.text)
+        assertTrue(text.getLinkAnnotations(0, text.length).isEmpty())
+    }
+
+    @Test
+    fun `file link renders as plain text`() {
+        val result = blocks("[read](file:///data/local/tmp/x)")
+        val text = (result.single() as MdBlock.Paragraph).text
+
+        assertEquals("read", text.text)
+        assertTrue(text.getLinkAnnotations(0, text.length).isEmpty())
+    }
+
+    @Test
+    fun `content and data links render as plain text`() {
+        val content = blocks("[c](content://com.example/secret)")
+        val data = blocks("[d](data:text/html,hi)")
+
+        val contentText = (content.single() as MdBlock.Paragraph).text
+        val dataText = (data.single() as MdBlock.Paragraph).text
+        assertEquals("c", contentText.text)
+        assertEquals("d", dataText.text)
+        assertTrue(contentText.getLinkAnnotations(0, contentText.length).isEmpty())
+        assertTrue(dataText.getLinkAnnotations(0, dataText.length).isEmpty())
+    }
+
+    @Test
+    fun `scheme without slashes renders as plain text`() {
+        val result = blocks("[half](http:example.com)")
+        val text = (result.single() as MdBlock.Paragraph).text
+
+        assertEquals("half", text.text)
+        assertTrue(text.getLinkAnnotations(0, text.length).isEmpty())
+    }
+
+    @Test
+    fun `uppercase unsafe schemes render as plain text`() {
+        val result = blocks("[x](JAVASCRIPT:alert(1))")
+        val text = (result.single() as MdBlock.Paragraph).text
+
+        assertEquals("x", text.text)
+        assertTrue(text.getLinkAnnotations(0, text.length).isEmpty())
+    }
+
+    @Test
+    fun `bare http scheme renders as plain text`() {
+        val result = blocks("[x](http:)")
+        val text = (result.single() as MdBlock.Paragraph).text
+
+        assertEquals("x", text.text)
+        assertTrue(text.getLinkAnnotations(0, text.length).isEmpty())
+    }
+
+    @Test
+    fun `mixed paragraph links only the safe destination`() {
+        val result = blocks("[a](javascript:alert(1)) [b](https://ok.example) [c](intent:foo)")
+        val text = (result.single() as MdBlock.Paragraph).text
+
+        assertEquals("a b c", text.text)
+        val links = text.getLinkAnnotations(0, text.length)
+        assertEquals(1, links.size)
+        assertEquals("https://ok.example", (links.single().item as LinkAnnotation.Url).url)
+        val range = links.single()
+        assertEquals("b", text.text.substring(range.start, range.end))
+        assertEquals(2, range.start)
+        assertEquals(3, range.end)
+    }
+
+    @Test
+    fun `mailto links remain clickable`() {
+        val result = blocks("[mail](mailto:dev@example.com)")
+        val text = (result.single() as MdBlock.Paragraph).text
+
+        assertEquals("mail", text.text)
+        val link = text.getLinkAnnotations(0, text.length).single().item as LinkAnnotation.Url
+        assertEquals("mailto:dev@example.com", link.url)
+    }
+
+    @Test
+    fun `safe schemes are matched case insensitively`() {
+        val result = blocks("[site](HTTPS://example.com)")
+        val text = (result.single() as MdBlock.Paragraph).text
+
+        val link = text.getLinkAnnotations(0, text.length).single().item as LinkAnnotation.Url
+        assertEquals("HTTPS://example.com", link.url)
+    }
+
+    @Test
+    fun `safe autolinks remain clickable`() {
+        val result = blocks("See <https://example.com> and <mailto:dev@example.com>")
+        val text = (result.single() as MdBlock.Paragraph).text
+
+        assertEquals("See https://example.com and mailto:dev@example.com", text.text)
+        val links = text.getLinkAnnotations(0, text.length).map { it.item as LinkAnnotation.Url }
+        assertEquals(listOf("https://example.com", "mailto:dev@example.com"), links.map { it.url })
+    }
+
+    @Test
     fun `empty and malformed markdown never throws`() {
         assertTrue(blocks("").isEmpty())
         assertTrue(blocks("\r\n\r\n").isEmpty())

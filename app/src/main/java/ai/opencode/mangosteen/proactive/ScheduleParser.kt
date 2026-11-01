@@ -17,6 +17,7 @@ object ScheduleParser {
     )
 
     private val PATTERNS = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSS",
         "yyyy-MM-dd'T'HH:mm:ss",
         "yyyy-MM-dd'T'HH:mm",
         "yyyy-MM-dd HH:mm",
@@ -24,6 +25,8 @@ object ScheduleParser {
     )
 
     private val ZONE_SUFFIX = Regex("(Z|[+-]\\d{2}:?\\d{2})$", RegexOption.IGNORE_CASE)
+
+    private val ISO_FRACTION = Regex("^(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})\\.(\\d{1,})$")
 
     /** Returns the reply with blocks removed plus every future schedule it contained. */
     fun extract(
@@ -55,10 +58,21 @@ object ScheduleParser {
         }
         val zone = zoneMatch?.let { timeZone(it.value) }
         if (zoneMatch != null && zone == null) return null
-        parseLocal(core, zone)?.let { return it }
+        parseLocal(normalizeFraction(core), zone)?.let { return it }
         if (zoneMatch != null) return null
         // Models occasionally copy the user's relative phrasing into the block.
         return CheckinText.parse(value, now) ?: CheckinText.parse("in $value", now)
+    }
+
+    /**
+     * ISO fractions are decimal seconds, but the `SSS` pattern reads digits as
+     * milliseconds: pad `.1` to `.100` and truncate `.123456` to `.123`.
+     * Anchored to full ISO timestamps so prose like "in 1.5 hours" is untouched.
+     */
+    private fun normalizeFraction(value: String): String {
+        val match = ISO_FRACTION.matchEntire(value) ?: return value
+        val fraction = match.groupValues[2].padEnd(3, '0').take(3)
+        return "${match.groupValues[1]}.$fraction"
     }
 
     private fun parseLocal(value: String, zone: TimeZone?): Long? {

@@ -108,6 +108,18 @@ private val INLINE = Regex(
         "|<((?:https?://|mailto:)[^>\\s]+)>"
 )
 
+/**
+ * Model output is untrusted, so only ordinary web and mail links may become
+ * tappable. The check is case insensitive and requires `//` for HTTP, keeping
+ * javascript:, intent:, file:, content: and data: destinations as plain text.
+ */
+private val SAFE_LINK_PREFIXES = listOf("https://", "http://", "mailto:")
+
+private fun isSafeLinkDestination(url: String): Boolean {
+    val lower = url.lowercase(Locale.ROOT)
+    return SAFE_LINK_PREFIXES.any(lower::startsWith)
+}
+
 private fun indentWidth(prefix: String): Int = prefix.length
 
 private fun levelFor(indent: Int): Int = (indent / 2).coerceIn(0, 6)
@@ -311,17 +323,21 @@ private fun annotate(text: String, codeBg: Color, link: Color): AnnotatedString 
             }
             groups[2].isNotEmpty() -> {
                 val url = groups[3]
-                withLink(
-                    LinkAnnotation.Url(
-                        url,
-                        TextLinkStyles(
-                            style = SpanStyle(
-                                color = link,
-                                textDecoration = TextDecoration.Underline,
+                if (isSafeLinkDestination(url)) {
+                    withLink(
+                        LinkAnnotation.Url(
+                            url,
+                            TextLinkStyles(
+                                style = SpanStyle(
+                                    color = link,
+                                    textDecoration = TextDecoration.Underline,
+                                )
                             )
                         )
-                    )
-                ) {
+                    ) {
+                        append(groups[2])
+                    }
+                } else {
                     append(groups[2])
                 }
             }
@@ -373,17 +389,21 @@ private fun annotate(text: String, codeBg: Color, link: Color): AnnotatedString 
             }
             groups[12].isNotEmpty() -> {
                 val url = groups[12]
-                withLink(
-                    LinkAnnotation.Url(
-                        url,
-                        TextLinkStyles(
-                            style = SpanStyle(
-                                color = link,
-                                textDecoration = TextDecoration.Underline,
+                if (isSafeLinkDestination(url)) {
+                    withLink(
+                        LinkAnnotation.Url(
+                            url,
+                            TextLinkStyles(
+                                style = SpanStyle(
+                                    color = link,
+                                    textDecoration = TextDecoration.Underline,
+                                )
                             )
                         )
-                    )
-                ) {
+                    ) {
+                        append(url)
+                    }
+                } else {
                     append(url)
                 }
             }

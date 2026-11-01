@@ -76,6 +76,88 @@ class CheckinTextTest {
     }
 
     @Test
+    fun `weekday after its default hour rolls a full week`() {
+        val fridayEvening = at(2026, Calendar.OCTOBER, 16, 18, 0)
+        assertEquals(
+            at(2026, Calendar.OCTOBER, 23, 17, 0),
+            CheckinText.parse("friday at 5pm", fridayEvening),
+        )
+
+        val sundayNoon = at(2026, Calendar.OCTOBER, 18, 12, 0)
+        assertEquals(
+            at(2026, Calendar.OCTOBER, 25, 9, 0),
+            CheckinText.parse("sunday at 9am", sundayNoon),
+        )
+    }
+
+    @Test
+    fun `weekday clock earlier than now rolls a full week even before the default hour`() {
+        val fridayMorning = at(2026, Calendar.OCTOBER, 16, 8, 0)
+        assertEquals(
+            at(2026, Calendar.OCTOBER, 23, 7, 0),
+            CheckinText.parse("friday at 7am", fridayMorning),
+        )
+    }
+
+    @Test
+    fun `weekday clock later than now stays today even after the default hour`() {
+        val fridayLateMorning = at(2026, Calendar.OCTOBER, 16, 10, 0)
+        assertEquals(
+            at(2026, Calendar.OCTOBER, 16, 17, 0),
+            CheckinText.parse("friday at 5pm", fridayLateMorning),
+        )
+    }
+
+    @Test
+    fun `bare weekday before its default stays today`() {
+        val fridayMorning = at(2026, Calendar.OCTOBER, 16, 8, 0)
+        assertEquals(
+            at(2026, Calendar.OCTOBER, 16, 9, 0),
+            CheckinText.parse("check in friday", fridayMorning),
+        )
+    }
+
+    @Test
+    fun `bare weekday after its default rolls a full week`() {
+        val fridayLateMorning = at(2026, Calendar.OCTOBER, 16, 10, 0)
+        assertEquals(
+            at(2026, Calendar.OCTOBER, 23, 9, 0),
+            CheckinText.parse("check in friday", fridayLateMorning),
+        )
+    }
+
+    @Test
+    fun `chained clock on a weekday does not jump a week`() {
+        val fridayLateMorning = at(2026, Calendar.OCTOBER, 16, 10, 0)
+        assertEquals(
+            at(2026, Calendar.OCTOBER, 16, 18, 0),
+            CheckinText.parse("friday at 5pm, finish at 6", fridayLateMorning),
+        )
+    }
+
+    @Test
+    fun `chained cross-midnight clock on a weekday lands tomorrow`() {
+        val fridayEvening = at(2026, Calendar.OCTOBER, 16, 18, 0)
+        assertEquals(
+            at(2026, Calendar.OCTOBER, 17, 1, 0),
+            CheckinText.parse("friday at 11pm, finish at 1am", fridayEvening),
+        )
+        assertEquals(
+            at(2026, Calendar.OCTOBER, 17, 6, 0),
+            CheckinText.parse("friday at 11pm, finish at 6am", fridayEvening),
+        )
+    }
+
+    @Test
+    fun `chained cross-midnight clock stays on the next day before the first clock passes`() {
+        val fridayLateMorning = at(2026, Calendar.OCTOBER, 16, 10, 0)
+        assertEquals(
+            at(2026, Calendar.OCTOBER, 17, 1, 0),
+            CheckinText.parse("friday at 11pm, finish at 1am", fridayLateMorning),
+        )
+    }
+
+    @Test
     fun `no time in the text means no check-in`() {
         assertNull(CheckinText.parse("whenever you like", now))
         assertNull(CheckinText.parse("", now))

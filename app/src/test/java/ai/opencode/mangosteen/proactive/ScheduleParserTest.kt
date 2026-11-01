@@ -58,6 +58,68 @@ class ScheduleParserTest {
     }
 
     @Test
+    fun `iso timestamps keep milliseconds`() {
+        val (_, schedules) = ScheduleParser.extract(
+            "```schedule\n{\"at\":\"2026-10-20T09:00:00.123Z\",\"note\":\"ms\"}\n```",
+            now,
+        )
+
+        assertEquals(
+            atUtc(2026, Calendar.OCTOBER, 20, 9, 0) + 123L,
+            schedules.single().fireAt,
+        )
+    }
+
+    @Test
+    fun `short fractional seconds are scaled to milliseconds`() {
+        val (_, schedules) = ScheduleParser.extract(
+            "```schedule\n{\"at\":\"2026-10-20T09:00:00.1Z\",\"note\":\"tenth\"}\n```",
+            now,
+        )
+
+        assertEquals(
+            atUtc(2026, Calendar.OCTOBER, 20, 9, 0) + 100L,
+            schedules.single().fireAt,
+        )
+    }
+
+    @Test
+    fun `long fractional seconds are truncated to milliseconds`() {
+        val (_, schedules) = ScheduleParser.extract(
+            "```schedule\n{\"at\":\"2026-10-20T09:00:00.123456Z\",\"note\":\"micro\"}\n```",
+            now,
+        )
+
+        assertEquals(
+            atUtc(2026, Calendar.OCTOBER, 20, 9, 0) + 123L,
+            schedules.single().fireAt,
+        )
+    }
+
+    @Test
+    fun `fractional seconds combine with an offset zone`() {
+        val (_, schedules) = ScheduleParser.extract(
+            "```schedule\n{\"at\":\"2026-10-20T09:00:00.123+02:00\",\"note\":\"offset ms\"}\n```",
+            now,
+        )
+
+        assertEquals(
+            atUtc(2026, Calendar.OCTOBER, 20, 7, 0) + 123L,
+            schedules.single().fireAt,
+        )
+    }
+
+    @Test
+    fun `fractional seconds without a zone keep local time`() {
+        val (_, schedules) = ScheduleParser.extract(
+            "```schedule\n{\"at\":\"2026-10-20T09:00:00.123\",\"note\":\"local ms\"}\n```",
+            now,
+        )
+
+        assertEquals(at(2026, Calendar.OCTOBER, 20, 9, 0) + 123L, schedules.single().fireAt)
+    }
+
+    @Test
     fun `a future local time is kept`() {
         val (_, schedules) = ScheduleParser.extract(
             "```schedule\n{\"at\":\"2026-10-20 09:30\",\"note\":\"local\"}\n```",

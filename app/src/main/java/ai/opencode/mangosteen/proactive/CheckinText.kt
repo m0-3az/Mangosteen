@@ -177,6 +177,7 @@ object CheckinText {
 
         val base = Calendar.getInstance().apply { timeInMillis = now }
         var evening = false
+        var dayWasWeekday = false
         var fireAt: Long? = null
         var previousClock: Long? = null
 
@@ -187,6 +188,7 @@ object CheckinText {
                         base.timeInMillis = now
                         evening = false
                     }
+                    dayWasWeekday = false
                     applyOffset(base, piece.amount, piece.unit)
                     fireAt = base.timeInMillis
                     previousClock = null
@@ -194,14 +196,16 @@ object CheckinText {
 
                 is Piece.Day -> {
                     val word = piece.word.lowercase()
+                    val weekday = WEEKDAYS.any { it.startsWith(word.take(3)) }
                     base.timeInMillis = dayFor(word, now)
+                    dayWasWeekday = weekday
                     evening = word.startsWith("ton")
                     val preferred = Calendar.getInstance().apply {
                         timeInMillis = base.timeInMillis
                         set(Calendar.HOUR_OF_DAY, if (evening) 20 else 9)
                     }
                     if (preferred.timeInMillis <= now) {
-                        preferred.add(Calendar.DAY_OF_YEAR, 1)
+                        preferred.add(Calendar.DAY_OF_YEAR, if (weekday) 7 else 1)
                     }
                     fireAt = preferred.timeInMillis
                     previousClock = null
@@ -216,6 +220,7 @@ object CheckinText {
                         piece.minute,
                         piece.mer,
                         evening,
+                        dayWasWeekday,
                     )
                     base.timeInMillis = time
                     fireAt = time
@@ -290,6 +295,7 @@ object CheckinText {
         minute: Int,
         mer: String,
         evening: Boolean,
+        dayWasWeekday: Boolean,
     ): Long {
         val pm = when {
             mer.startsWith("p") -> true
@@ -305,8 +311,11 @@ object CheckinText {
             set(Calendar.MILLISECOND, 0)
         }
         var time = cal.timeInMillis
-        if (time <= now || (previous != null && previous > now && time < previous)) {
+        if (previous != null && previous > now && time < previous) {
             cal.add(Calendar.DAY_OF_YEAR, 1)
+            time = cal.timeInMillis
+        } else if (time <= now) {
+            cal.add(Calendar.DAY_OF_YEAR, if (dayWasWeekday) 7 else 1)
             time = cal.timeInMillis
         }
         return time

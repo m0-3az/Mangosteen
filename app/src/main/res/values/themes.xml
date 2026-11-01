@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!--
+        The starting window is painted before the activity can read the saved
+        theme. Use the brand primary here so light themes do not flash black and
+        dark themes do not flash white; applyWindowBackground() replaces it with
+        the exact theme background as soon as the activity is created.
+    -->
     <style name="Theme.Mangosteen" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowBackground">@color/primary</item>
         <item name="android:textColorPrimary">@color/text_primary</item>
         <item name="android:textColorSecondary">@color/text_secondary</item>
         <item name="android:statusBarColor">@android:color/transparent</item>

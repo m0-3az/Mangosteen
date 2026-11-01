@@ -1,6 +1,7 @@
 package ai.opencode.mangosteen.ui
 
 import android.app.Application
+import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -22,6 +23,7 @@ import ai.opencode.mangosteen.proactive.ProactiveScheduler
 import ai.opencode.mangosteen.proactive.ScheduleParser
 import ai.opencode.mangosteen.settings.SecurePrefs
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -37,7 +39,11 @@ import java.util.Locale
 
 data class Attachment(val path: String, val mime: String)
 
-class ChatViewModel(app: Application) : AndroidViewModel(app) {
+class ChatViewModel @JvmOverloads constructor(
+    app: Application,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val scheduler: ((Context, Reminder) -> Unit)? = null,
+) : AndroidViewModel(app) {
 
     companion object {
         const val NEW_TITLE = "New chat"
@@ -552,8 +558,11 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         viewModelScope.launch {
-            val id = withContext(Dispatchers.IO) { repo.addReminder(conv.id, fireAt, note) }
-            ProactiveScheduler.schedule(getApplication(), Reminder(id, conv.id, fireAt, note))
+            val id = withContext(ioDispatcher) { repo.addReminder(conv.id, fireAt, note) }
+            (scheduler ?: ProactiveScheduler::schedule)(
+                getApplication(),
+                Reminder(id, conv.id, fireAt, note),
+            )
             val whenText = SimpleDateFormat("h:mma", Locale.getDefault()).format(Date(fireAt))
             toast = "Check-in scheduled for $whenText"
         }
